@@ -37,6 +37,7 @@ jobs:
       - name: Check if release exists
         id: check-release
         run: |
+          cd samfirm
           if gh release view "$LATEST_VERSION" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
