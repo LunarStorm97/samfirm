@@ -1,0 +1,52 @@
+name: Node.js CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4.2.0
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run script
+        run: node index.mjs -m SM-A236M -r ARO -i R5CW312KLVM
+
+      - name: Split large files
+        run: |
+          for file in SM-A236M_ARO/AP*; do
+            split -b 1024m $file ${file}_part_
+            rm $file
+          done
+
+      - name: Get latest firmware version
+        run: |
+          LATEST_VERSION=$(curl -s http://fota-cloud-dn.ospserver.net/firmware/ARO/SM-A236M/version.xml | grep -oP '<latest[^>]*>\K[^<]+')
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+
+      - name: Check if release exists
+        id: check-release
+        run: |
+          if gh release view "$LATEST_VERSION" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: GH Release
+        if: ${{ steps.check-release.outputs.exists == 'false' }}
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          files: SM-A236M_ARO/*
+          name: ${{ env.LATEST_VERSION }}
+          tag_name: ${{ env.LATEST_VERSION }}
